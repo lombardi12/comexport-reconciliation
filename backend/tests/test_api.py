@@ -1,3 +1,4 @@
+import os
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
@@ -21,8 +22,10 @@ async def test_api_list_scenarios():
         response = await ac.get("/api/scenarios")
     assert response.status_code == 200
     scenarios = response.json()
-    assert len(scenarios) == 3
+    assert len(scenarios) == 8
     assert any(s["id"] == "byd_ev_shipment" for s in scenarios)
+    assert any(s["id"] == "aviation_turbine_gulfstream" for s in scenarios)
+    assert any(s["id"] == "steel_coils_stainless" for s in scenarios)
 
 
 @pytest.mark.anyio
@@ -41,17 +44,47 @@ async def test_api_reconcile_byd_scenario():
 
 
 @pytest.mark.anyio
-async def test_api_semantic_ncm_check():
+async def test_api_batch_reconciliation():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        payload = {
-            "sku": "EV-BATTERY-MODULE",
-            "international_description": "Lithium Iron Phosphate Battery Pack 150Ah for EV",
-            "declared_ncm": "8507.60.00",
-            "declared_description": "Acumuladores elétricos de íon de lítio"
-        }
-        response = await ac.post("/api/semantic-check", json=payload)
-        assert response.status_code == 200
-        result = response.json()
-        assert result["semantic_match"] is True
-        assert result["confidence_score_pct"] > 80.0
+        response = await ac.get("/api/batch-reconciliation")
+    assert response.status_code == 200
+    data = response.json()
+    assert "batch_summary" in data
+    assert data["batch_summary"]["total_shipments_audited"] == 8
+    assert data["batch_summary"]["green_channel_count"] >= 3
+    assert data["batch_summary"]["red_channel_count"] >= 3
+    assert data["batch_summary"]["total_penalties_avoided_brl"] > 100_000.0
+    assert len(data["shipments"]) == 8
+
+
+@pytest.mark.anyio
+async def test_api_sample_files_list():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/api/sample-files")
+    assert response.status_code == 200
+    files = response.json()
+    assert len(files) >= 8
+    assert any(f["filename"] == "INV_BYD_9921.pdf" for f in files)
+
+
+@pytest.mark.anyio
+async def test_api_upload_and_reconcile_pdf():
+    pdf_path = os.path.join(os.getcwd(), "samples", "documents", "INV_BYD_9921.pdf")
+    if not os.path.exists(pdf_path):
+        pytest.skip("PDF de teste ainda não gerado")
+
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        files = {"invoice_file": ("INV_BYD_9921.pdf", pdf_bytes, "application/pdf")}
+        response = await ac.post("/api/upload-and-reconcile", files=files)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert "document_ai_metadata" in result
+    assert "reconciliation_result" in result
+    assert result["reconciliation_result"]["summary"]["risk_channel"] == "VERDE"

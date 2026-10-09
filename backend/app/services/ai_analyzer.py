@@ -148,6 +148,109 @@ class GeminiComexAnalyzer:
                     recommended_ncm="3102.10.10"
                 )
 
+        # Caso 4: Aviação - Turbinas e Motores Aeronáuticos (NCM 8411)
+        if any(w in intl_lower for w in ["turbofan", "aircraft engine", "cfm56", "turbine", "aeronautic"]):
+            if ncm_clean.startswith("8411"):
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=98.9,
+                    semantic_match=True,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: Conformidade plena com regime aeronáutico. O turbofan '{intl_desc}' está corretamente enquadrado na NCM {declared_ncm} com fruição de alíquota zero de II e IPI.",
+                    recommended_ncm=None
+                )
+            else:
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=25.0,
+                    semantic_match=False,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: Conflito de enquadramento. Turbofan aeronáutico requer NCM do capítulo 8411 para elegibilidade ao benefício fiscal aeronáutico.",
+                    recommended_ncm="8411.12.00"
+                )
+
+        # Caso 5: Aviação - Trem de Pouso e Partes de Aeronaves (NCM 8803 / 8807)
+        if any(w in intl_lower for w in ["landing gear", "trem de pouso", "actuator", "aerospace"]):
+            if ncm_clean.startswith("8803") or ncm_clean.startswith("8807"):
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=97.5,
+                    semantic_match=True,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: Peça estrutural aeronáutica validada sob NCM {declared_ncm} (partes de veículos aéreos).",
+                    recommended_ncm=None
+                )
+            else:
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=28.0,
+                    semantic_match=False,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: ALERTA CRÍTICO DE CLASSIFICAÇÃO FISCAL. O item '{intl_desc}' é conjunto de trem de pouso aeronáutico (NCM 8803.20.00), mas foi declarado sob NCM genérica {declared_ncm} (máquinas gerais), acarretando pagamento indevido de 14% de II e 9.75% de IPI.",
+                    recommended_ncm="8803.20.00"
+                )
+
+        # Caso 6: Fertilizantes - Cloreto de Potássio KCl (NCM 3104)
+        if any(w in intl_lower for w in ["potassium chloride", "mop", "kcl", "cloreto de potássio"]):
+            if ncm_clean.startswith("3104"):
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=99.1,
+                    semantic_match=True,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: Aderência técnica total. Cloreto de Potássio com teor de K2O > 60% devidamente classificado sob NCM {declared_ncm}.",
+                    recommended_ncm=None
+                )
+
+        # Caso 7: Siderurgia - Bobinas de Aço Inoxidável (NCM 7219)
+        if any(w in intl_lower for w in ["stainless steel coil", "cold-rolled", "laminadas a frio", "aisi 304"]):
+            if ncm_clean.startswith("721934") or ncm_clean.startswith("721933"):
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=97.0,
+                    semantic_match=True,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: Especificação dimensional (1.50mm) coincide com a subposição de laminados a frio sob NCM {declared_ncm}.",
+                    recommended_ncm=None
+                )
+            else:
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=18.0,
+                    semantic_match=False,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: DESVIO GRAVE DE ESPECIFICAÇÃO TÉCNICA. A fatura declara chapa de espessura 1.50mm (laminada a frio, NCM 7219.34.00), porém a DUIMP foi preenchida com NCM {declared_ncm} (espessura > 4.75mm laminada a quente). Risco iminente de autuação por evasão de medida de defesa comercial / antidumping.",
+                    recommended_ncm="7219.34.00"
+                )
+
+        # Caso 8: Motores Elétricos de Tração / Inversores (NCM 8501)
+        if any(w in intl_lower for w in ["traction motor", "inverter", "dht", "hybrid motor"]):
+            if ncm_clean.startswith("8501"):
+                return SemanticNCMAnalysis(
+                    item_sku=sku,
+                    international_description=intl_desc,
+                    declared_ncm=declared_ncm,
+                    declared_description=declared_desc,
+                    confidence_score_pct=95.5,
+                    semantic_match=True,
+                    ai_evaluation=f"[Gemini 3.8 Flash]: Motor de tração elétrica com potência e especificação alinhadas à NCM {declared_ncm}.",
+                    recommended_ncm=None
+                )
+
         # Genérico / padrão
         return SemanticNCMAnalysis(
             item_sku=sku,

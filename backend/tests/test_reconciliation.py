@@ -60,13 +60,63 @@ async def test_pace_scenario_flags_yellow_channel():
     assert ptax_disc is not None
 
 
+@pytest.mark.anyio
+async def test_aviation_turbine_scenario_approves_green():
+    """Valida se a importação da turbina CFM56 (Aviação Executiva) é aprovada no Canal Verde."""
+    input_data = SampleScenariosRepository.get_scenario("aviation_turbine_gulfstream")
+    engine = CustomsReconciliationEngine()
+    result = await engine.reconcile(input_data)
+
+    assert result.duimp_approved is True
+    assert result.summary.risk_channel == RiskChannel.VERDE
+    assert result.summary.critical_issues == 0
+    assert result.summary.risk_score >= 95.0
+    assert any("aeronáutico" in a.ai_evaluation.lower() for a in result.semantic_analysis)
+
+
+@pytest.mark.anyio
+async def test_aviation_landing_gear_blocks_red():
+    """Valida se o trem de pouso aeronáutico declarado com NCM indevida é bloqueado no Canal Vermelho."""
+    input_data = SampleScenariosRepository.get_scenario("aviation_landing_gear_alert")
+    engine = CustomsReconciliationEngine()
+    result = await engine.reconcile(input_data)
+
+    assert result.duimp_approved is False
+    assert result.summary.risk_channel == RiskChannel.VERMELHO
+    assert result.summary.critical_issues >= 1
+    assert result.summary.potential_penalty_risk_brl > 0
+
+
+@pytest.mark.anyio
+async def test_fertilizer_kcl_approves_green():
+    """Valida se o lote de 20.000 t de Cloreto de Potássio é aprovado no Canal Verde."""
+    input_data = SampleScenariosRepository.get_scenario("fertilizer_kcl_potassium")
+    engine = CustomsReconciliationEngine()
+    result = await engine.reconcile(input_data)
+
+    assert result.duimp_approved is True
+    assert result.summary.risk_channel == RiskChannel.VERDE
+    assert result.summary.critical_issues == 0
+
+
+@pytest.mark.anyio
+async def test_steel_coils_blocks_red():
+    """Valida se as bobinas de inox com espessura adulterada na NCM caem no Canal Vermelho."""
+    input_data = SampleScenariosRepository.get_scenario("steel_coils_stainless")
+    engine = CustomsReconciliationEngine()
+    result = await engine.reconcile(input_data)
+
+    assert result.duimp_approved is False
+    assert result.summary.risk_channel == RiskChannel.VERMELHO
+    assert result.summary.critical_issues >= 1
+    assert any("7219" in d.actual_value for d in result.discrepancies)
+
+
 def test_tax_calculator_customs_value():
     """Testa regra de cálculo do Valor Aduaneiro conforme Incoterm."""
-    # FOB: Mercadoria (100) + Frete (20) + Seguro (5) = 125
     val_fob = TaxCalculator.calculate_customs_value(100.0, "FOB", freight=20.0, insurance=5.0)
     assert val_fob == 125.0
 
-    # CIF: Já inclui frete e seguro
     val_cif = TaxCalculator.calculate_customs_value(100.0, "CIF", freight=20.0, insurance=5.0)
     assert val_cif == 100.0
 
